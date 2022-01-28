@@ -8,5 +8,5 @@ Concurrent tasks run on asyncio library, asyncio queue is used to manage shared 
 
 # Launch foobartory
 Require `Python 3.8` \
-Launch with `python foobartory.py` \
+Launch command : `python foobartory.py` \
 `EXEC_SPEED` variable from `foobartory.py` configure execution speed of the program.

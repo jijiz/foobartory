@@ -4,9 +4,10 @@ Robot can build materials like "foo" and "bar", they can build another robot fro
 Robot can also sell/buy other robots.
 
 # Design Principles
-Concurrent tasks run on asyncio library, asyncio queue is used to manage shared ressources between coroutines.
+Concurrent tasks run with asyncio library, asyncio queue is used to manage shared ressources between coroutines.
 
 # Launch foobartory
+Run on Windows and Linux
 Require `Python 3.8` \
 Launch command : `python foobartory.py` \
 `EXEC_SPEED` variable from `foobartory.py` configure execution speed of the program.

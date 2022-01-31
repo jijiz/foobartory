@@ -38,6 +38,9 @@ class InventoryManager():
         self.lock_robot_counter = asyncio.Lock()
 
 class Robot():
+    """
+    The Robot object store coroutine to make foo/bar, and build/sell/buy robots.
+    """
     def __init__(self, inventory_manager :"InventoryManager", name):
         self._previous_task = RobotTask.NONE
         self._im = inventory_manager
@@ -50,7 +53,7 @@ class Robot():
         log(f'foo : {foo}, bar : {bar}, money : {money}')
 
         ListAvailableTask = [RobotTask.MINING_BAR, RobotTask.MINING_FOO]
-        # Can robot
+        # Can build robot
         if foo and bar:
             ListAvailableTask.append(RobotTask.MAKE_ROBOT)
 
@@ -110,6 +113,7 @@ class Robot():
         getOneBar = False
         getOneFoo = False
         try:
+            # Borrow foo and bar
             self._im.queue_foo.get_nowait()
             getOneFoo = True
             self._im.queue_bar.get_nowait()

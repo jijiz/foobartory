@@ -33,12 +33,6 @@ options:
   -h, --help     show this help message and exit
   --speed SPEED  Set execution speed of factory. "One factory second" = "One real second"/EXEC_SPEED
 usage: foobartory.py [-h] [--speed SPEED]
-
-Foobar factory.
-
-options:
-  -h, --help     show this help message and exit
-  --speed SPEED  Set execution speed of factory. "One factory second" = "One real second"/EXEC_SPEED
 ```
 
 # If I had more time...

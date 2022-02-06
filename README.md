@@ -41,4 +41,4 @@ usage: foobartory.py [-h] [--speed SPEED]
 -Add an optimized strategy to get the 30 foobar the quickest way possible, maybe with machine learning (runs program several times, and construct a model of optmized next task).
 
 # Limitations
--It may happen that a ressource is not anymore available when robots are waiting to process their task. It would be better to get ressource before waiting that the task end.
+-It may happen that a ressource is not anymore available while robots are waiting to process their task. It would be better to get ressource before waiting that the task end.

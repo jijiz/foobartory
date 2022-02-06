@@ -200,9 +200,9 @@ class Robot:
             logger.warning("%s Buy robot : ressources unavailable", self.name)
         logger.info("%s END buy robot", self.name)
 
-        await self.create_robot_task()
+        self.create_robot_task()
 
-    async def create_robot_task(self):
+    def create_robot_task(self):
         """
         Create new robot task: add new coroutine to asyncio loop.
         Terminate factory when 30 robots are runing.
@@ -221,7 +221,7 @@ def terminate_factory():
     """
     Terminate factory: cancel all runing tasks and stop the loop
     """
-    logger.info("Terminate factory. The last %s working robots are :", len(asyncio.all_tasks()))
+    logger.info("The last %s working robots are :", len(asyncio.all_tasks()))
     for task in asyncio.all_tasks():
         logger.info(task.get_name())
         task.cancel()
@@ -249,12 +249,13 @@ asyncio.set_event_loop(loop)
 
 im = InventoryManager()
 
-for i in range(2):
+# Factory start with 2 robots
+for _ in range(2):
     robot = Robot(im)
     im.robots_list.append(robot)
     loop.create_task(robot.work(), name=robot.name)
 try:
     loop.run_forever()
-except Exception as e:  # pylint: disable=bare-except
+except Exception as e:
     logging.error("Exception: %s", e)
     loop.close()

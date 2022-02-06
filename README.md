@@ -5,7 +5,7 @@ Robots can : \
 -Mine _bar_, takes between 0.5 and 2 seconds. \
 -Make _foobar_, takes 2 seconds. Require 1 _foo_ and 1 _bar_. Success rate is 60%, if it fails _bar_ is returned not _foo_. \
 -Sell _foobar_, takes 10 seconds. They can sell between 1 to 5 _foobar_ at a time and get 1 _money_ by sold _foobar_. \
--Buy _Robot_, takes no time. Requires 3 money and 6 foo.
+-Buy _Robot_, takes no time. Requires 3 _money_ and 6 _foo_.
 
 The factory starts with 2 robots. \
 The goal of the factory is to produce 30 _foobar_ then factory is stopped.

@@ -9,6 +9,7 @@ Robots can : \
 
 Each time a robot choose a different activy from the previous, it takes 5 seconds. \
 The factory starts with 2 robots. \
+
 The goal of the factory is to produce 30 _foobar_ then factory is stopped.
 
 # Design Principles

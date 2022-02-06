@@ -1,41 +1,53 @@
+"""
+foobartory: automatic foobar production line.
+"""
 import asyncio
 from enum import Enum
-import random
-import time
 import signal
+import os
+import logging
+import random
 
 # "One factory second" = "One real second"/EXEC_SPEED
-EXEC_SPEED = 1
+SPEED = int(os.getenv('EXEC_SPEED', '1'))
+
+# Logging configuration
+FORMAT = '%(asctime)-15s %(message)s'
+logging.basicConfig(format=FORMAT)
+logger = logging.getLogger('logger')
+logger.setLevel(logging.INFO)
 
 class RobotTask(Enum):
-    NONE = 1
-    MINING_FOO = 2
-    MINING_BAR = 3
-    MAKE_ROBOT = 4
-    SELL_ROBOT = 5
-    BUY_ROBOT = 6
-
-def log(msg):
-    print(f'{time.asctime()} : {msg}')
+    """
+    Enum RobotTask : describe robot abilities
+    """
+    NONE = 0
+    MINING_FOO = 1
+    MINING_BAR = 2
+    MAKE_FOOBAR = 3
+    SELL_FOOBAR = 4
+    BUY_ROBOT = 5
 
 class InventoryManager():
     """
-    The InventoryManager object store ressources of factory : foo, bar, money, robot counter. Store also locks for accessing robot counter and sell action.
+    The InventoryManager object store ressources of factory : foo, bar, money.
+    Store also locks for accessing ressources.
     """
     def __init__(self) -> None:
-        self.queue_foo = asyncio.Queue()
-        self.queue_bar = asyncio.Queue()
-        self.queue_money = asyncio.Queue()
-        self.queue_foo.put_nowait(1)
-        self.queue_bar.put_nowait(1)
+        # Ressources counter
+        self.res_foo = 1
+        self.res_bar = 1
+        self.res_money = 0
+        self.res_foobar = 0
 
-        # Unique ID of made robots
-        self.robot_counter = 1
-        
-        # Avoid task to be cancelled more than one time
-        self.lock_sell = asyncio.Lock()
-        # Maintain consistency of robot counter
-        self.lock_robot_counter = asyncio.Lock()
+        # Maintain consistency of ressources
+        self.lock_res_foo = asyncio.Lock()
+        self.lock_res_bar = asyncio.Lock()
+        self.lock_money = asyncio.Lock()
+        self.lock_res_foobar = asyncio.Lock()
+
+        # Robots
+        self.robots_list = []
 
 class Robot():
     """
@@ -47,170 +59,195 @@ class Robot():
         self.name = name
 
     def _next_task(self):
-        foo = self._im.queue_foo.qsize()
-        bar = self._im.queue_bar.qsize()
-        money = self._im.queue_money.qsize()
-        log(f'foo : {foo}, bar : {bar}, money : {money}')
+        res_foo =self._im.res_foo
+        res_bar = self._im.res_bar
+        res_money = self._im.res_money
+        res_foobar = self._im.res_foobar
+        logger.info('foo : %s, bar : %s, money : %s, foobar : %s', res_foo, res_bar, res_money, res_foobar) # pylint: disable=line-too-long
 
-        ListAvailableTask = [RobotTask.MINING_BAR, RobotTask.MINING_FOO]
-        # Can build robot
-        if foo and bar:
-            ListAvailableTask.append(RobotTask.MAKE_ROBOT)
+        list_available_task = [RobotTask.MINING_BAR, RobotTask.MINING_FOO]
+
+        # Can make foobar
+        if res_foo and res_bar:
+            list_available_task.append(RobotTask.MAKE_FOOBAR)
+
+        # Can sell foobar
+        if res_foobar > 1:
+            list_available_task.append(RobotTask.SELL_FOOBAR)
 
         # Can buy robot
-        if money >= 3 and foo >= 6:
-            ListAvailableTask.append(RobotTask.BUY_ROBOT)
+        if res_money >= 3 and res_foo >= 6:
+            list_available_task.append(RobotTask.BUY_ROBOT)
 
-        # Can sell robot
-        if self.tasks_len() > 1:
-            ListAvailableTask.append(RobotTask.SELL_ROBOT)
+        # Return randomly one task from list_available_task
+        return random.choice(list_available_task)
 
-        # Return randomly one task from ListAvailableTask
-        return ListAvailableTask[random.randint(0,len(ListAvailableTask)-1)]
-        
     async def work(self):
+        """
+        Coroutine robot task
+        """
         try:
             while True:
                 # Choose the next task randomly
-                nextTask = self._next_task()
+                next_task = self._next_task()
 
                 # Robot moving time
-                if (nextTask is not self._previous_task) and (self._previous_task is not RobotTask.NONE):
-                    log(f'{self.name} is moving to his next task')
-                    await asyncio.sleep(5/EXEC_SPEED)
-                self._previous_task = nextTask
-                
+                if (next_task is not self._previous_task) and self._previous_task:
+                    logger.info('%s is moving to new task', self.name)
+                    await asyncio.sleep(5/SPEED)
+                self._previous_task = next_task
+
                 # Run the task
-                if nextTask is RobotTask.MINING_FOO:
-                    await self.mining_foo() 
-                elif nextTask is RobotTask.MINING_BAR:
+                if next_task is RobotTask.MINING_FOO:
+                    await self.mining_foo()
+                elif next_task is RobotTask.MINING_BAR:
                     await self.mining_bar()
-                elif nextTask is RobotTask.MAKE_ROBOT:
-                    await self.make_robot()
-                elif nextTask is RobotTask.BUY_ROBOT:    
+                elif next_task is RobotTask.MAKE_FOOBAR:
+                    await self.make_foobar()
+                elif next_task is RobotTask.SELL_FOOBAR:
+                    await self.sell_foobar()
+                elif next_task is RobotTask.BUY_ROBOT:
                     await self.buy_robot()
-                elif nextTask is RobotTask.SELL_ROBOT:
-                    await self.sell_robot()
+
         except asyncio.CancelledError:
-            log(f'{self.name} cancelled')
+            logger.warning('%s cancelled', self.name)
         else:
             return 1
 
-            
     async def mining_foo(self):
-        log(f'{self.name} START mining foo')
-        await asyncio.sleep(1/EXEC_SPEED)
-        self._im.queue_foo.put_nowait(1)
-        log(f'{self.name} END mining foo')
+        """
+        Mining foo: takes 1 second.
+        """
+        logger.info('%s START mining foo', self.name)
+        await asyncio.sleep(1/SPEED)
+        async with self._im.lock_res_foo:
+            self._im.res_foo+=1
+        logger.info('%s END mining foo', self.name)
 
     async def mining_bar(self):
-        log(f'{self.name} START mining bar')
-        await asyncio.sleep((random.randint(5,20)/10.0)/EXEC_SPEED)
-        self._im.queue_bar.put_nowait(1)
-        log(f'{self.name} END mining bar')
+        """
+        Mining bar: takes between 0.5 and 2 seconds
+        """
+        logger.info('%s START mining bar', self.name)
+        await asyncio.sleep((random.randint(5,20)/10.0)/SPEED)
+        async with self._im.lock_res_bar:
+            self._im.res_bar+=1
+        logger.info('%s END mining bar', self.name)
 
-    async def make_robot(self):
-        getOneBar = False
-        getOneFoo = False
-        try:
-            # Borrow foo and bar
-            self._im.queue_foo.get_nowait()
-            getOneFoo = True
-            self._im.queue_bar.get_nowait()
-            getOneBar = True
+    async def make_foobar(self):
+        """
+        Making foobar: takes 2 seconds.
+        Require 1 foo and 1 bar.
+        Success rate : 60%.
+        If it fails return bar not foo.
+        """
+        logger.info('%s START make foobar', self.name)
+        await asyncio.sleep(2/SPEED)
 
-            log(f'{self.name} START make robot')
-            await asyncio.sleep(2/EXEC_SPEED)
+        async with self._im.lock_res_foo, self._im.lock_res_bar:
+            if self._im.res_foo and self._im.res_bar:
+                self._im.res_foo-=1
+                self._im.res_bar-=1
+            else:
+                logger.warning('%s Make foobar: ressources unavailable', self.name)
+                return
 
-            # success make robot : 60%
-            if random.randint(1,10) <= 6:
-                # success
-                log(f'{self.name} END make robot')
-                await self.create_robot_task()
-            else: 
-                # fail -> Give back bar not foo
-                self._im.queue_bar.put_nowait(1)
-                log(f'{self.name} FAILED make robot')
-        except asyncio.QueueEmpty as e:
-            log(f'{self.name} Failed make robot {e}')
-            # Give back bar and foo not consumed
-            if getOneFoo:
-                self._im.queue_foo.put_nowait(1)
-            if getOneBar:
-                self._im.queue_bar.put_nowait(1)
-            
+        # success make foobar : 60% chance of success
+        if random.randint(1,10) <= 6:
+            # success
+            async with self._im.lock_res_foobar:
+                self._im.res_foobar+=1
+            logger.info('%s END make foobar: success', self.name)
+        else:
+            # fail -> Give back bar not foo
+            async with self._im.lock_res_bar:
+                self._im.res_bar+=1
+            logger.warning('%s END make foobar: fail', self.name)
+
+    async def sell_foobar(self):
+        """
+        Sell foobar: takes 10 seconds.
+        Robot can sell between 1 to 5 foobar.
+        Get 1 money by sold foobar.
+        """
+        logger.info('%s START sell foobar', self.name)
+        await asyncio.sleep(10/SPEED)
+
+        async with self._im.lock_res_foobar, self._im.lock_money:
+            if self._im.res_foobar:
+                nb_foobar_sold = random.randint(1,min(5, self._im.res_foobar))
+                self._im.res_money+=nb_foobar_sold
+                self._im.res_foobar-=nb_foobar_sold
+                logger.info('%s END sell %s foobar', self.name, nb_foobar_sold)
+            else:
+                logger.warning('%s Sell foobar: ressources unavailable', self.name)
 
     async def buy_robot(self):
+        """
+        Buy robot: takes not time.
+        Cost : 3 money and 6 foo.
+        """
+        logger.info('%s START buy robot', self.name)
+        async with self._im.lock_money, self._im.lock_res_foo:
+            if self._im.res_money >= 3 and self._im.res_foo >=6:
+                self._im.res_money-=3
+                self._im.res_foo-=6
+            else:
+                logger.warning('%s Buy robot : ressources unavailable', self.name)
+        logger.info('%s END buy robot', self.name)
+
         await self.create_robot_task()
 
-    async def sell_robot(self):
-        log(f'{self.name} START sell robots')
-        await asyncio.sleep(10/EXEC_SPEED)
-        
-        async with self._im.lock_sell:
-            tasks = asyncio.all_tasks()
-            nbRobotToSell = random.randint(1,min(5, len(tasks)))  
-            countSoldRobot = 0
-
-            # could be cleaner
-            for task in tasks:
-                if task is asyncio.current_task():
-                    continue
-                else:
-                    task.cancel()
-                    countSoldRobot+=1
-                    log(f'{self.name} sold {task.get_name()}')
-                    if countSoldRobot == nbRobotToSell:
-                        break
-
-            for i in range(countSoldRobot):
-                self._im.queue_money.put_nowait(1)
-                   
-        log(f'{self.name} END sell robots')
-
-
     async def create_robot_task(self):
-        robot_alive = Robot(self._im ,name=f'Bob {self._im.robot_counter}')
-        loop = asyncio.get_running_loop()
-        loop.create_task(robot_alive.work(), name=f'Bob {self._im.robot_counter}')
-
-        async with self._im.lock_robot_counter:
-            self._im.robot_counter+=1
+        """
+        Create new robot task: add new coroutine to asyncio loop.
+        Terminate factory when 30 robots are runing.
+        """
+        robot_id = len(self._im.robots_list) + 1
+        robot_alive = Robot(self._im ,name=f'Robot {robot_id}')
+        self._im.robots_list.append(robot_alive)
+        running_loop = asyncio.get_running_loop()
+        running_loop.create_task(robot_alive.work(), name=f'Robot {robot_id}')
 
         # Stop runing loop when we have enough robots
-        if self.tasks_len() == 30:
+        if len(self._im.robots_list) == 30:
             terminate_factory()
 
-    def tasks_len(self):
-        return len(asyncio.all_tasks())
-
 def terminate_factory():
-    log(f'Terminate factory. The last {len(asyncio.all_tasks())} working robots are :')
+    """
+    Terminate factory: cancel all runing tasks in asyncio loop and stop the loop
+    """
+    logger.info('Terminate factory. The last %s working robots are :', len(asyncio.all_tasks()))
     for task in asyncio.all_tasks():
-        log(f'{task.get_name()}')
+        logger.info(task.get_name())
         task.cancel()
 
     asyncio.get_running_loop().stop()
 
 def exit_gracefully(signum, frame):
+    """
+    Catch CTRL+C input keyboard and terminate factory
+    """
     signal.signal(signal.SIGINT, original_sigint)
     terminate_factory()
 
-    # restore the exit gracefully handler    
+    # restore the exit gracefully handler
     signal.signal(signal.SIGINT, exit_gracefully)
 
-# Catch SIGINT to exit gracefully
+# Redirect SIGINT to exit gracefully
 original_sigint = signal.getsignal(signal.SIGINT)
 signal.signal(signal.SIGINT, exit_gracefully)
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
-inventory_manager = InventoryManager()
 
-robots = [Robot(inventory_manager, name=f'Robot {i}') for i in range(2)]
-for robot in robots:
+im = InventoryManager()
+
+for i in range(2):
+    robot = Robot(im, name=f'Robot {i}')
+    im.robots_list.append(robot)
     loop.create_task(robot.work(), name=robot.name)
 try:
     loop.run_forever()
-except:
+except: # pylint: disable=bare-except
     loop.close()

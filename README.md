@@ -7,11 +7,12 @@ Robots can : \
 -Sell _foobar_, takes 10 seconds. They can sell between 1 to 5 _foobar_ at a time and get 1 _money_ by sold _foobar_. \
 -Buy _Robot_, takes no time. Requires 3 _money_ and 6 _foo_.
 
+Each time a robot choose a different activy from the previous, it takes 5 seconds. \
 The factory starts with 2 robots. \
 The goal of the factory is to produce 30 _foobar_ then factory is stopped.
 
 # Design Principles
-To optimize the factory, a robot wich is waiting to process his task must not block others robots to process their task. Asyncio is suited to run concurrent code.
+To optimize the factory, a robot wich is waiting to process his task must not block others robots to process their task. Asyncio is suited to run concurrent code. \
 Robots choose they task randomly depending ressources available.
 
 # Code quality

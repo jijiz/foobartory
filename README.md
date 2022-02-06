@@ -7,6 +7,7 @@ Robots can : \
 -Sell _foobar_, takes 10 seconds. They can sell between 1 to 5 _foobar_ at a time and get 1 _money_ by sold _foobar_. \
 -Buy _Robot_, takes no time. Requires 3 money and 6 foo.
 
+The factory starts with 2 robots. \
 The goal of the factory is to produce 30 _foobar_ then factory is stopped.
 
 # Design Principles
